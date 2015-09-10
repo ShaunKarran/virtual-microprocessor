@@ -6,7 +6,7 @@
 #define RAM_SIZE		16 /* in bytes */
 #define NUM_REGISTERS	2
 
-typedef struct {
+typedef struct processor {
 	char ram[RAM_SIZE];
 	char reg[NUM_REGISTERS];
 	char *pc;
@@ -14,22 +14,26 @@ typedef struct {
 	bool running;
 } processor;
 
-void print_cpu_state(processor &cpu);
+void print_cpu_state(processor *cpu);
 
 int main(int argc, char *argv[])
 {
 	processor cpu;
 
-	// for debug
-	cpu.ram[0] = 3;
-	cpu.ram[1] = 5;
-	cpu.ram[2] = 5;
-	cpu.ram[3] = 1;
+	memset(cpu.ram, 0, RAM_SIZE * sizeof(char)); /* Initialise ram to 0's */
+
+	// test program
+	cpu.ram[0] = 7;
+	cpu.ram[1] = 3;
+	cpu.ram[2] = 0;
+	cpu.ram[3] = 4;
 
 	cpu.pc = cpu.ram; /* Point pc to start of ram at beginning of execution */
 	cpu.running = true;
 
 	while (cpu.running && cpu.pc < (cpu.ram + RAM_SIZE)) {
+		print_cpu_state(&cpu);
+
 		switch (*(cpu.pc)) {
 			case 0:			/* Halt processor */
 				cpu.running = false;
@@ -52,9 +56,10 @@ int main(int argc, char *argv[])
 			case 6:			/* R1 <- R1 - 1   */
 				cpu.reg[0]--;
 				break;
+			case 7:			/* R0 <- *(*(pc+1)) */
+				cpu.reg[0] = cpu.ram[*(++cpu.pc)];
+				break;
 		}
-
-		printf("pc: %d\n", *(cpu.pc)); // for debug
 
 		cpu.pc++;
 	} /* End while */
@@ -62,7 +67,22 @@ int main(int argc, char *argv[])
 	return EXIT_SUCCESS;
 }
 
-void print_cpu_state(processor &cpu)
+void print_cpu_state(processor *cpu)
 {
-	
+	printf("--- Processor State ---\n");
+	printf("Program Counter = %ld\n", (cpu->pc - cpu->ram));
+	printf("Current Instruction = %d\n", *(cpu->pc));
+
+	for (int i = 0; i < NUM_REGISTERS; i++) {
+		printf("Register %d = %d\n", i, cpu->reg[i]);
+	}
+
+	printf("RAM:");
+	for (int i = 0; i < RAM_SIZE; i++) {
+		if (i % 4 == 0)
+			printf("\n");
+		printf("%d ", cpu->ram[i]);
+	}
+
+	printf("\n\n");
 }
