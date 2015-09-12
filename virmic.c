@@ -78,6 +78,8 @@ int main(int argc, char *argv[])
             case 11:        /* Jump to *(pc + 1) */
                 cpu.pc = cpu.mem + *(cpu.pc + 1) - 1; /* -1 to negate pc++ after switch */
                 break;
+            default:
+                cpu.running = false;
         }
 
         cpu.pc++;
