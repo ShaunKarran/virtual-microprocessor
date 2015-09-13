@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#define MEM_SIZE        16 /* in bytes */
-#define NUM_REGISTERS   2
+#define MEM_SIZE 16 /* bytes */
 
 typedef struct processor {
-    char mem[MEM_SIZE];
-    char r[NUM_REGISTERS];
+    char r0;
+    char r1;
     char *pc;
+    char *mem;
     char current_instruction;
     bool running;
 } processor;
@@ -22,10 +22,15 @@ int main(int argc, char *argv[])
 {
     processor cpu;
 
+    cpu.mem = malloc(MEM_SIZE * sizeof(char));
+    if (cpu.mem == NULL) {
+        perror("Unable to allocate memory.");
+        exit(EXIT_FAILURE);
+    }
     memset(cpu.mem, 0, MEM_SIZE * sizeof(char)); /* Initialise ram to 0's */
     cpu.pc = cpu.mem; /* Point pc to start of mem */
 
-    /* Load the specified program into mem. */
+    /* Load program into mem. */
     if (argc == 2) {
         load_program_to_mem(argv[1], &cpu);
     } else {
@@ -42,42 +47,57 @@ int main(int argc, char *argv[])
         getchar();
 
         switch (*(cpu.pc)) {
-            case 0:	        /* Halt processor */
+            case 0x00:	        /* Halt processor */
                 cpu.running = false;
                 break;
-            case 1:	        /* Add R0 & R1 */
-                cpu.r[0] += cpu.r[1];
+            case 0x01:	        /* Add R0 & R1 */
+                cpu.r0 += cpu.r1;
                 break;
-            case 2:	        /* Subtract R1 from R0 */
-                cpu.r[0] -= cpu.r[1];
+            case 0x02:	        /* Subtract R1 from R0 */
+                cpu.r0 -= cpu.r1;
                 break;
-            case 3:	        /* Increment R0 */
-                cpu.r[0]++;
+            case 0x03:	        /* Increment R0 */
+                cpu.r0++;
                 break;
-            case 4:	        /* Increment R1 */
-                cpu.r[1]++;
+            case 0x04:	        /* Increment R1 */
+                cpu.r1++;
                 break;
-            case 5:	        /* Degrement R0 */
-                cpu.r[0]--;
+            case 0x05:	        /* Degrement R0 */
+                cpu.r0--;
                 break;
-            case 6:	        /* Decrement R1 */
-                cpu.r[1]--;
+            case 0x06:	        /* Decrement R1 */
+                cpu.r1--;
                 break;
-            case 7:	        /* Load value at *(pc + 1) into R0 */
-                cpu.r[0] = cpu.mem[*(++cpu.pc)];
+            case 0x07:         /* Print value at *(pc + 1) */
+                printf("Output: %d\n\n", cpu.mem[*(++cpu.pc)]);
                 break;
-            case 8:	        /* Load value at *(pc + 1) into R1 */
-                cpu.r[1] = cpu.mem[*(++cpu.pc)];
+            case 0x08:	        /* Load value at *(pc + 1) into R0 */
+                cpu.r0 = cpu.mem[*(++cpu.pc)];
                 break;
-            case 9:	        /* Save value in R0 into *(pc + 1) */
-                cpu.mem[*(++cpu.pc)] = cpu.r[0];
+            case 0x09:	        /* Load value at *(pc + 1) into R1 */
+                cpu.r1 = cpu.mem[*(++cpu.pc)];
                 break;
-            case 10:        /* Save value in R1 into *(pc + 1) */
-                cpu.mem[*(++cpu.pc)] = cpu.r[1];
+            case 0x0a:	        /* Save value in R0 into *(pc + 1) */
+                cpu.mem[*(++cpu.pc)] = cpu.r0;
                 break;
-            case 11:        /* Jump to *(pc + 1) */
+            case 0x0b:        /* Save value in R1 into *(pc + 1) */
+                cpu.mem[*(++cpu.pc)] = cpu.r1;
+                break;
+            case 0x0c:        /* Jump to *(pc + 1) */
                 cpu.pc = cpu.mem + *(cpu.pc + 1) - 1; /* -1 to negate pc++ after switch */
                 break;
+            case 0x0d:        /* Jump to *(pc + 1) if R0 == 0 */
+                if (cpu.r0 == 0) {
+                    cpu.pc = cpu.mem + *(cpu.pc + 1) - 1;
+                } else {
+                    cpu.pc++;
+                }
+            case 0x0e:        /* Jump to *(pc + 1) if R0 != 0 */
+                if (cpu.r0 != 0) {
+                    cpu.pc = cpu.mem + *(cpu.pc + 1) - 1;
+                } else {
+                    cpu.pc++;
+                }
             default:
                 cpu.running = false;
         }
@@ -116,15 +136,14 @@ void print_cpu_state(processor *cpu)
     printf("Program Counter = %ld\n", (cpu->pc - cpu->mem));
     printf("Current Instruction = %d\n", *(cpu->pc));
 
-    for (int i = 0; i < NUM_REGISTERS; i++) {
-        printf("Register %d = %d\n", i, cpu->r[i]);
-    }
+    printf("Register r0 = %d\n", cpu->r0);
+    printf("Register r1 = %d\n", cpu->r1);
 
     printf("RAM:");
     for (int i = 0; i < MEM_SIZE; i++) {
         if (i % 4 == 0)
             printf("\n");
-        printf("%d ", cpu->mem[i]);
+        printf("%d\t", cpu->mem[i]);
     }
 
     printf("\n\n");
